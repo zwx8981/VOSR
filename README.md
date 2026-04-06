@@ -7,13 +7,13 @@
 [![Paper](https://img.shields.io/badge/Paper-arXiv-b31b1b.svg)](https://arxiv.org/pdf/2604.03225)
 
 
-[Rongyuan Wu](#)<sup>1,2,&#42;</sup> |
-[Lingchen Sun](#)<sup>1,2,&#42;</sup> |
-[Zhengqiang Zhang](#)<sup>1,2</sup> |
-[Xiangtao Kong](#)<sup>1,2</sup> <br>
-[Jixin Zhao](#)<sup>1,2</sup> |
-[Shihao Wang](#)<sup>1</sup> |
-[Lei Zhang](#)<sup>1,2,&dagger;</sup>
+[Rongyuan Wu](https://scholar.google.com/citations?user=A-U8zE8AAAAJ&hl=zh-CN)<sup>1,2,&#42;</sup> |
+[Lingchen Sun](https://scholar.google.com/citations?user=ZCDjTn8AAAAJ&hl=zh-CN)<sup>1,2,&#42;</sup> |
+[Zhengqiang Zhang](https://scholar.google.com/citations?user=UX26wSMAAAAJ&hl=en)<sup>1,2</sup> |
+[Xiangtao Kong](https://scholar.google.com/citations?user=lueNzSgAAAAJ&hl=zh-CN)<sup>1,2</sup> <br>
+[Jixin Zhao](https://scholar.google.com/citations?user=0Z89rfUAAAAJ)<sup>1,2</sup> |
+[Shihao Wang](https://scholar.google.com/citations?user=7TWugs4AAAAJ&hl=zh-CN)<sup>1</sup> |
+[Lei Zhang](https://www4.comp.polyu.edu.hk/~cslzhang/)<sup>1,2,&dagger;</sup>
 
 <sup>1</sup> The Hong Kong Polytechnic University
 <sup>2</sup> OPPO Research Institute
