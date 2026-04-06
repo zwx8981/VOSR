@@ -4,7 +4,7 @@
 
 #### &#x1F6A9; Accepted by CVPR 2026
 
-[![Paper](https://img.shields.io/badge/Paper-TBD-b31b1b.svg)](#)
+[![Paper](https://img.shields.io/badge/Paper-arXiv-b31b1b.svg)](https://arxiv.org/pdf/2604.03225)
 
 
 [Rongyuan Wu](#)<sup>1,2,&#42;</sup> |
