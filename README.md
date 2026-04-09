@@ -66,9 +66,9 @@ preset/ckpts/
 
 #### VAE and decoder
 
-To improve inference efficiency for image SR, we release `Qwen-Image-vae-2d`, an image-only 2D variant extracted from the original video-style Qwen-Image VAE, which avoids the overhead of the full 3D design.
+For `VOSR-0.5B`, we provide `sd21_lwdecoder.pth`, a lightweight replacement for the original SD2.1 VAE decoder. It achieves comparable overall visual quality in our evaluation, while performing slightly better on text-rich and document-like images.
 
-For SD2.1-based 0.5B models, we provide `sd21_lwdecoder.pth`, a lightweight decoder that serves as an alternative to the original SD2.1 VAE decoder. In our evaluation, it achieves comparable overall visual quality, while performing slightly better on text-rich and document-like images.
+When scaling to `VOSR-1.4B`, we adopt the 16-channel Qwen-Image VAE to better preserve input fidelity. Although Qwen-Image is designed for T2I generation, it is released in a video-VAE form, which is unnecessarily slow for image SR inference. We therefore provide `Qwen-Image-vae-2d`, an image-only 2D variant extracted from the original model to remove the overhead of the full 3D design.
 
 ### &#x1F5C2;&#xFE0F; Training Data
 
