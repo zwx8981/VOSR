@@ -4,20 +4,14 @@
 
 <p align="center"><i>A framework for native generative image restoration.</i></p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/CVPR-2026-0A66C2?style=for-the-badge" alt="CVPR 2026">
-  <img src="https://img.shields.io/badge/Task-Image%20Super--Resolution-2EA44F?style=for-the-badge" alt="Task">
-  <img src="https://img.shields.io/badge/License-Apache%202.0-F59E0B?style=for-the-badge" alt="License">
-</p>
-
 #### &#x1F6A9; Accepted by CVPR 2026
 
 [![Paper](https://img.shields.io/badge/Paper-arXiv-b31b1b.svg)](https://arxiv.org/pdf/2604.03225)
 [![Checkpoints](https://img.shields.io/badge/Checkpoints-ModelScope-6246EA.svg)](https://modelscope.cn/models/LULALULALU/VOSR_CKPT)
 [![Benchmark](https://img.shields.io/badge/Benchmark-ScreenSR-0EA5E9.svg)](https://modelscope.cn/datasets/LULALULALU/ScreenSR)
 
-[Rongyuan Wu](https://scholar.google.com/citations?user=A-U8zE8AAAAJ&hl=zh-CN)<sup>1,2,*</sup> |
-[Lingchen Sun](https://scholar.google.com/citations?user=ZCDjTn8AAAAJ&hl=zh-CN)<sup>1,2,*</sup> |
+[Rongyuan Wu](https://scholar.google.com/citations?user=A-U8zE8AAAAJ&hl=zh-CN)<sup>1,2,&#42;</sup> |
+[Lingchen Sun](https://scholar.google.com/citations?user=ZCDjTn8AAAAJ&hl=zh-CN)<sup>1,2,&#42;</sup> |
 [Zhengqiang Zhang](https://scholar.google.com/citations?user=UX26wSMAAAAJ&hl=en)<sup>1,2</sup> |
 [Xiangtao Kong](https://scholar.google.com/citations?user=lueNzSgAAAAJ&hl=zh-CN)<sup>1,2</sup> <br>
 [Jixin Zhao](https://scholar.google.com/citations?user=0Z89rfUAAAAJ)<sup>1,2</sup> |
@@ -27,7 +21,7 @@
 <sup>1</sup> The Hong Kong Polytechnic University  
 <sup>2</sup> OPPO Research Institute
 
-<sup>*</sup> Equal contribution.  
+<sup>&#42;</sup> Equal contribution.  
 <sup>&dagger;</sup> Corresponding author.
 
 </div>
