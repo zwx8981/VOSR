@@ -200,6 +200,10 @@ If VOSR is useful for your research, please consider citing:
 }
 ```
 
+## Acknowledgements
+
+This project benefits from [stable-diffusion-2-1-base](https://huggingface.co/Manojb/stable-diffusion-2-1-base), [LightningDiT](https://github.com/hustvl/LightningDiT), and [Qwen-Image](https://huggingface.co/Qwen/Qwen-Image). We thank the authors for their open-source contributions.
+
 ## &#x2696;&#xFE0F; License
 
 This project is released under the Apache License 2.0. See [LICENSE](LICENSE) for details.
