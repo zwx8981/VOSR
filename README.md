@@ -55,6 +55,11 @@
 </p>
 <p align="center"><em>Comparison with prior methods in performance, inference efficiency, and training cost.</em></p>
 
+<p align="center">
+  <img src="assets/vis_comp.jpg" alt="Qualitative comparison on natural and text-rich images" width="100%">
+</p>
+<p align="center"><em>VOSR better preserves fine structures and text readability.</em></p>
+
 <a id="preparation"></a>
 ## &#x1F9F0; Preparation
 
