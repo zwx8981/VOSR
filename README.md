@@ -28,6 +28,11 @@
 <!-- Optional teaser image -->
 <!-- ![teaser](assets/teaser.png) -->
 
+<p align="center">
+  <img src="assets/overview.jpg" alt="VOSR overview" width="100%">
+</p>
+<p align="center"><em>Overview of the VOSR framework, including the overall pipeline and our condition / guidance design.</em></p>
+
 
 ## &#x1F4CC; Quick Links
 
@@ -45,8 +50,26 @@
 
 ---
 
+<p align="center">
+  <img src="assets/vosr_comparison_figure.png" alt="VOSR performance, efficiency, and training cost comparison" width="100%">
+</p>
+<p align="center"><em>Comparison with prior methods in performance, inference efficiency, and training cost.</em></p>
+
 <a id="preparation"></a>
 ## &#x1F9F0; Preparation
+
+### Dependencies and Installation
+
+```bash
+## clone this repository
+git clone https://github.com/cswry/VOSR.git
+cd VOSR
+
+# create an environment with python >= 3.8
+conda create -n vosr python=3.8
+conda activate vosr
+pip install -r requirements.txt
+```
 
 ### &#x1F4E6; Model Weights
 
@@ -89,9 +112,16 @@ Each line: `<folder_path>, <sampling_weight>`. Higher weight = more frequent sam
 
 For `txt` mode, each folder should contain HQ images (`.png` / `.jpg`). For `webdataset` mode, each folder should contain `.tar` shards with images inside.
 
-### &#x1F9EA; Benchmark Data
+### &#x1F9EA; New Real-World Paired Benchmark
 
 Download the [ScreenSR](https://modelscope.cn/datasets/LULALULALU/ScreenSR) benchmark and place it wherever you like, then point `-i` to that folder when running inference.
+
+[ScreenSR](https://modelscope.cn/datasets/LULALULALU/ScreenSR) is a real-world paired benchmark for generative SR, built with a screen re-photography pipeline. It provides cleaner references, more diverse content, and broader variation in scenes and scales than existing real-world paired SR benchmarks.
+
+<p align="center">
+  <img src="assets/montage_13x10_256px.jpg" alt="ScreenSR benchmark montage" width="100%">
+</p>
+<p align="center"><em>Thumbnail montage of the ScreenSR benchmark, covering diverse scenes, subjects, and multilingual text.</em></p>
 
 ---
 
