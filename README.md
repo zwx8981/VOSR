@@ -139,6 +139,9 @@ Download the [ScreenSR benchmark from ModelScope](https://modelscope.cn/datasets
 <a id="training"></a>
 ## &#x1F3CB;&#xFE0F; Training
 
+The provided training configs disable experiment tracking by default
+(`report_to: none`). To enable Weights & Biases logging, run `wandb login`
+with your own account and set `report_to: wandb` in the YAML config.
 
 ### Multi-step Training
 
@@ -243,8 +246,8 @@ If VOSR is useful for your research, please consider citing:
 
 ## Acknowledgements
 
-This project benefits from [stable-diffusion-2-1-base](https://huggingface.co/Manojb/stable-diffusion-2-1-base), [LightningDiT](https://github.com/hustvl/LightningDiT), [Qwen-Image](https://huggingface.co/Qwen/Qwen-Image), [RCGM](https://github.com/LINs-lab/RCGM), and [Shortcut-models](https://github.com/kvfrans/shortcut-models). We thank the authors for their open-source contributions.
+This project benefits from [stable-diffusion-2-1-base](https://huggingface.co/Manojb/stable-diffusion-2-1-base), [LightningDiT](https://github.com/hustvl/LightningDiT), [Qwen-Image](https://huggingface.co/Qwen/Qwen-Image), [DINOv2](https://github.com/facebookresearch/dinov2), [BasicSR](https://github.com/XPixelGroup/BasicSR), [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN), [RCGM](https://github.com/LINs-lab/RCGM), and [Shortcut-models](https://github.com/kvfrans/shortcut-models). We thank the authors for their open-source contributions.
 
 ## &#x2696;&#xFE0F; License
 
-This project is released under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+This project is released under the Apache License 2.0 unless otherwise noted. See [LICENSE](LICENSE) for details. Downloadable model weights, benchmark data, and external assets may have separate terms on their hosting pages.

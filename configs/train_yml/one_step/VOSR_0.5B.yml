@@ -37,7 +37,7 @@ lwdecoder_path: preset/ckpts/sd21_lwdecoder.pth
 learning_rate: 2.0e-5
 max_train_steps: 100001
 checkpointing_steps: 5000
-infercence_steps: 5000
+inference_steps: 5000
 adam_beta1: 0.9
 adam_beta2: 0.95
 adam_weight_decay: 1.0e-2
@@ -95,7 +95,7 @@ distill_type: rcgm # shortcut, rcgm
 # logging
 logging_dir: logs
 output_dir: exp_vosr/
-report_to: wandb
+report_to: none
 
 
 

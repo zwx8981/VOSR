@@ -40,8 +40,8 @@ lwdecoder_path: preset/ckpts/sd21_lwdecoder.pth
 # Training configuration
 learning_rate: 5.0e-5
 max_train_steps: 400001
-checkpointing_steps: 10
-infercence_steps: 10
+checkpointing_steps: 10000
+inference_steps: 10000
 adam_beta1: 0.9
 adam_beta2: 0.95
 adam_weight_decay: 1.0e-2
@@ -54,7 +54,7 @@ use_ema: True
 mixed_precision: bf16
 tracker_project_name: vosr
 seed: 42
-ema_decay: 0.001
+ema_decay: 0.9999
 
 time_dist: ['uniform', 0, 1.0]
 
@@ -91,7 +91,7 @@ pretrained_ckpt: preset/ckpts/VOSR_0.5B_ms/checkpoints/ema_model.safetensors
 # logging
 logging_dir: logs
 output_dir: exp_vosr/
-report_to: wandb
+report_to: none
 
 
 

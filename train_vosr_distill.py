@@ -1,6 +1,6 @@
 import os
 import yaml
-import wandb, copy, glob
+import copy, glob
 import logging
 from collections import OrderedDict
 from tqdm import tqdm
@@ -20,7 +20,7 @@ from accelerate.logging import get_logger
 from accelerate.utils import DistributedType, ProjectConfiguration, set_seed
 from safetensors.torch import save_file
 from diffusers.optimization import get_scheduler
-from diffusers.utils import check_min_version, is_wandb_available, make_image_grid
+from diffusers.utils import check_min_version, make_image_grid
 my_torch_cache_root = 'preset/ckpts/torch_cache'
 os.makedirs(my_torch_cache_root, exist_ok=True)
 torch.hub.set_dir(my_torch_cache_root)
@@ -173,11 +173,26 @@ def find_latest_checkpoint(args):
 
 
 
-if is_wandb_available():
-    import wandb
-    wandb.login(key="654dc44a098866866f0c6fc7501c1a53182d7f2b")
-
 logger = get_logger(__name__)
+
+
+def normalize_report_to(report_to):
+    if report_to is None:
+        return None
+    if isinstance(report_to, str):
+        value = report_to.strip()
+        if value.lower() in {"", "none", "null", "false", "off", "no"}:
+            return None
+        return value
+    return report_to
+
+
+def report_to_wandb(report_to):
+    if report_to is None:
+        return False
+    if isinstance(report_to, str):
+        return report_to.lower() in {"wandb", "all"}
+    return any(str(item).lower() in {"wandb", "all"} for item in report_to)
 
 def filter_collate_fn(batch):
     """
@@ -331,6 +346,7 @@ def main(config_path):
     from argparse import Namespace
     config = load_config(config_path)
     args = Namespace(**config)
+    args.report_to = normalize_report_to(getattr(args, "report_to", None))
 
 
 
@@ -661,42 +677,42 @@ def main(config_path):
     else:
         global_step = 0
         
-    if accelerator.is_main_process:
+    if accelerator.is_main_process and args.report_to is not None:
         tracker_config = vars(copy.deepcopy(args))
         
         for key, value in tracker_config.items():
             if isinstance(value, list):
                 tracker_config[key] = str(value)
-        
-        wandb_id_file = os.path.join(args.output_dir, "wandb_id.txt")
-        wandb_id = None
-        
-        if os.path.exists(wandb_id_file):
-            with open(wandb_id_file, 'r') as f:
-                wandb_id = f.read().strip()
-            print(f"=======> Resuming WandB run with ID: {wandb_id}")
-        
-        if wandb_id is None or wandb_id == "":
-            import uuid
-            wandb_id = uuid.uuid4().hex
-            os.makedirs(args.output_dir, exist_ok=True)
-            with open(wandb_id_file, 'w') as f:
-                f.write(wandb_id)
-            print(f"=======> Created new WandB run with ID: {wandb_id}")
 
-        wandb_init_kwargs = {
-            "name": f"{args.exp_name}", 
-            "dir": args.output_dir,
-            "id": wandb_id,
-            "resume": "allow"
-        }
-        
+        init_kwargs = {}
+        if report_to_wandb(args.report_to):
+            wandb_id_file = os.path.join(args.output_dir, "wandb_id.txt")
+            wandb_id = None
+
+            if os.path.exists(wandb_id_file):
+                with open(wandb_id_file, 'r') as f:
+                    wandb_id = f.read().strip()
+                print(f"=======> Resuming WandB run with ID: {wandb_id}")
+
+            if wandb_id is None or wandb_id == "":
+                import uuid
+                wandb_id = uuid.uuid4().hex
+                os.makedirs(args.output_dir, exist_ok=True)
+                with open(wandb_id_file, 'w') as f:
+                    f.write(wandb_id)
+                print(f"=======> Created new WandB run with ID: {wandb_id}")
+
+            init_kwargs["wandb"] = {
+                "name": f"{args.exp_name}",
+                "dir": args.output_dir,
+                "id": wandb_id,
+                "resume": "allow"
+            }
+
         accelerator.init_trackers(
             project_name=args.tracker_project_name, 
             config=tracker_config,
-            init_kwargs={
-                "wandb": wandb_init_kwargs 
-            },
+            init_kwargs=init_kwargs,
         )
 
     # Train!
@@ -841,7 +857,7 @@ def main(config_path):
                         
                     accelerator.wait_for_everyone()
                     torch.cuda.empty_cache()
-                if global_step % args.infercence_steps == 1 and global_step > 0:
+                if global_step % args.inference_steps == 1 and global_step > 0:
                     if accelerator.is_main_process:   
                         model.eval()
                         lq_dir   = Path(args.test_lq_dir)
