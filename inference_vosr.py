@@ -14,6 +14,7 @@ from torchvision import transforms
 from torchvision.transforms import Normalize
 from safetensors.torch import load_file
 from tqdm import tqdm
+import pyiqa
 
 torch.hub.set_dir('preset/ckpts/torch_cache')
 sys.path.append(os.getcwd())
@@ -129,13 +130,53 @@ def preprocess_raw_image(x, args):
     return x
 
 
+def _resolve_dinov2_repo_path(repo_or_dir):
+    """Resolve a local DINOv2 repo path that contains hubconf.py."""
+    p = os.path.abspath(os.path.expanduser(repo_or_dir))
+    candidates = [
+        p,
+        os.path.join(p, "hub", "facebookresearch_dinov2_main"),
+        os.path.join(p, "facebookresearch_dinov2_main"),
+        os.path.join(p, "dinov2"),
+    ]
+    for c in candidates:
+        if os.path.isfile(os.path.join(c, "hubconf.py")):
+            return c
+    raise FileNotFoundError(
+        "Could not find hubconf.py for DINOv2 local loading. "
+        f"Provided --dinov2_repo: {repo_or_dir}. "
+        "Expected one of these to contain hubconf.py: "
+        + ", ".join(candidates)
+    )
+
+
 def load_dinov2(args, device):
     if args.enc_type == 'dinov2b':
-        encoder = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitb14')
+        model_name = 'dinov2_vitb14'
     elif args.enc_type == 'dinov2l':
-        encoder = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14')
+        model_name = 'dinov2_vitl14'
     elif args.enc_type == 'dinov2g':
-        encoder = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitg14')
+        model_name = 'dinov2_vitg14'
+    else:
+        raise ValueError(f"Unsupported enc_type: {args.enc_type}")
+
+    repo_or_dir = getattr(args, 'dinov2_repo', '')
+    repo_or_dir = repo_or_dir.strip() if isinstance(repo_or_dir, str) else ''
+
+    try:
+        if repo_or_dir:
+            local_repo = _resolve_dinov2_repo_path(repo_or_dir)
+            print(f"Loading DINOv2 from local repo: {local_repo} ({model_name})")
+            encoder = torch.hub.load(local_repo, model_name, source='local')
+        else:
+            encoder = torch.hub.load('facebookresearch/dinov2', model_name)
+    except Exception as e:
+        hint = (
+            "Failed to load DINOv2 via torch.hub. "
+            "If your environment has no internet access, clone "
+            "facebookresearch/dinov2 locally and pass --dinov2_repo /path/to/dinov2."
+        )
+        raise RuntimeError(f"{hint}\nOriginal error: {e}") from e
     del encoder.head
     encoder.head = torch.nn.Identity()
 
@@ -186,6 +227,25 @@ def _decode_latent(vae, sr_latent, args, latents_mean, latents_std, light_decode
     elif args.ae_type == 'qwen':
         sr_latent = sr_latent / latents_std + latents_mean
         return vae.decode(sr_latent, return_dict=False)[0].clamp(-1, 1)
+
+
+def _to_01(x):
+    return (x.clamp(-1, 1) + 1.0) * 0.5
+
+
+def build_nriqa_metric(name, device):
+    metric = pyiqa.create_metric(name, device=device, as_loss=False)
+    metric.eval()
+    for p in metric.parameters():
+        p.requires_grad_(False)
+    return metric
+
+
+def nriqa_loss_from_score(metric, score):
+    lower_better = getattr(metric, "lower_better", None)
+    if lower_better is True:
+        return score.mean()
+    return -score.mean()
 
 
 def _gaussian_weights(tile_h, tile_w, channels, device):
@@ -351,6 +411,36 @@ def main():
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--force_rerun', action='store_true')
     parser.add_argument('--config', type=str, default='')
+    parser.add_argument('--dinov2_repo', type=str, default='',
+                        help='Local path to facebookresearch/dinov2 repo. If set, load via torch.hub(source=\"local\") without network.')
+    parser.add_argument('--mode', type=str, choices=['vosr', 'doodl'], default='vosr',
+                        help='Inference mode: original VOSR path or experimental DOODL-style path.')
+    parser.add_argument('--latent_opt_steps', type=int, default=0,
+                        help='Number of latent optimization steps (used in doodl mode).')
+    parser.add_argument('--latent_opt_lr', type=float, default=1e-2,
+                        help='Latent optimization learning rate (used in doodl mode).')
+    parser.add_argument('--edict_mix_p', type=float, default=0.93,
+                        help='EDICT mixing coefficient p (used in doodl mode).')
+    parser.add_argument('--latent_opt_lambda_lr', type=float, default=1.0,
+                        help='Weight of LR consistency loss in doodl mode.')
+    parser.add_argument('--latent_opt_lambda_nriqa', type=float, default=0.05,
+                        help='Weight of NR-IQA loss in doodl mode.')
+    parser.add_argument('--nriqa_metric', type=str, default='liqe_mix',
+                        help='NR-IQA metric name from pyiqa, e.g. liqe_mix.')
+    parser.add_argument('--nriqa_patch_size', type=int, default=512,
+                        help='Resize patch size before NR-IQA scoring.')
+    parser.add_argument('--use_memcnn', action='store_true',
+                        help='Enable memcnn reversible wrapper for EDICT mixing modules.')
+    parser.add_argument('--memcnn_keep_input', action='store_true',
+                        help='Keep input tensors in memcnn wrapper for debugging/tracing.')
+    parser.add_argument('--use_reversible_step', action='store_true',
+                        help='Use step-level reversible FM interface in doodl mode.')
+    parser.add_argument('--constant_memory_doodl', action='store_true',
+                        help='Enable chunked doodl denoising to bound memory usage.')
+    parser.add_argument('--recompute_chunk_size', type=int, default=4,
+                        help='Chunk size for constant-memory doodl denoising.')
+    parser.add_argument('--exact_constant_memory_doodl', action='store_true',
+                        help='Use exact reversible-backprop rollout for doodl mode (requires frozen model params).')
 
     temp_args, _ = parser.parse_known_args()
     args = load_config_with_cli(temp_args.checkpoint, parser)
@@ -362,6 +452,8 @@ def main():
     if not image_paths:
         print("No LQ images found. Exit.")
         return
+    if args.mode == 'doodl' and args.tile_size > 0:
+        raise NotImplementedError("mode=doodl currently supports non-tiled inference only. Please set --tile_size 0.")
 
     run_stem = (
         f'{args.ae_type}_steps{args.infer_steps}_cfg{args.cfg_scale}'
@@ -472,6 +564,8 @@ def main():
         t_start=getattr(args, 't_start', 0.0),
         t_end=getattr(args, 't_end', 1.0),
         args=args,
+        use_memcnn=args.use_memcnn,
+        memcnn_keep_input=args.memcnn_keep_input,
     )
 
     # 6. Inference Loop
@@ -479,6 +573,15 @@ def main():
     args.output_dir = out_dir
     to_tensor = transforms.ToTensor()
     print(f"Processing {len(image_paths)} images...")
+    nriqa_metric = None
+    if args.mode == 'doodl':
+        if args.latent_opt_steps <= 0:
+            args.latent_opt_steps = 20
+        nriqa_metric = build_nriqa_metric(args.nriqa_metric, device)
+        for p in model.parameters():
+            p.requires_grad_(False)
+        for p in vae.parameters():
+            p.requires_grad_(False)
 
     for idx, img_path in enumerate(tqdm(image_paths, file=sys.stderr)):
         img_name = os.path.basename(img_path)
@@ -501,10 +604,116 @@ def main():
                 with torch.no_grad():
                     lq_latent, latents_mean, latents_std = _encode_latent(vae, lq, args, device)
                     z_fea = get_venc_features(venc, lq, args)
-                    sr_latent = vosr_model.sample_multistep_fm(
-                        model, lq_latent, n_steps=args.infer_steps, venc_fea=z_fea
-                    )
-                    sr_tensor = _decode_latent(vae, sr_latent, args, latents_mean, latents_std, light_decoder)
+
+                if args.mode == 'vosr':
+                    with torch.no_grad():
+                        sr_latent = vosr_model.sample_multistep_fm(
+                            model, lq_latent, n_steps=args.infer_steps, venc_fea=z_fea
+                        )
+                        sr_tensor = _decode_latent(vae, sr_latent, args, latents_mean, latents_std, light_decoder)
+                else:
+                    with torch.no_grad():
+                        zT_pair_init = vosr_model.noise_from_x0_edict(
+                            model=model,
+                            lq=lq_latent,
+                            x0_latent=lq_latent,
+                            venc_fea=z_fea,
+                            n_steps=args.infer_steps,
+                            p=args.edict_mix_p,
+                            use_reversible_step=args.use_reversible_step,
+                        )
+
+                    zT_pair = torch.nn.Parameter(zT_pair_init.detach().clone())
+                    opt_z = torch.optim.Adam([zT_pair], lr=args.latent_opt_lr)
+                    lr_ref = to_tensor(raw_img).unsqueeze(0).to(device)
+
+                    for _ in range(args.latent_opt_steps):
+                        opt_z.zero_grad(set_to_none=True)
+                        if args.exact_constant_memory_doodl:
+                            z0_latent = vosr_model.denoise_from_zT_edict_exact_constant_memory(
+                                model=model,
+                                lq=lq_latent,
+                                zT_pair=zT_pair,
+                                venc_fea=z_fea,
+                                n_steps=args.infer_steps,
+                                p=args.edict_mix_p,
+                                use_reversible_step=True,
+                            )
+                        elif args.constant_memory_doodl:
+                            z0_latent = vosr_model.denoise_from_zT_edict_chunked(
+                                model=model,
+                                lq=lq_latent,
+                                zT_pair=zT_pair,
+                                venc_fea=z_fea,
+                                n_steps=args.infer_steps,
+                                p=args.edict_mix_p,
+                                use_reversible_step=args.use_reversible_step,
+                                chunk_size=args.recompute_chunk_size,
+                                stop_grad_between_chunks=True,
+                            )
+                        else:
+                            z0_latent = vosr_model.denoise_from_zT_edict(
+                                model=model,
+                                lq=lq_latent,
+                                zT_pair=zT_pair,
+                                venc_fea=z_fea,
+                                n_steps=args.infer_steps,
+                                p=args.edict_mix_p,
+                                use_reversible_step=args.use_reversible_step,
+                            )
+                        sr_tensor_opt = _decode_latent(vae, z0_latent, args, latents_mean, latents_std, light_decoder)
+                        sr01 = _to_01(sr_tensor_opt)
+
+                        lr_pred = F.interpolate(sr01, size=lr_ref.shape[-2:], mode='bicubic', align_corners=False)
+                        loss_lr = F.l1_loss(lr_pred, lr_ref)
+
+                        sr_iqa = F.interpolate(
+                            sr01,
+                            size=(args.nriqa_patch_size, args.nriqa_patch_size),
+                            mode='bicubic',
+                            align_corners=False,
+                        )
+                        score = nriqa_metric(sr_iqa)
+                        loss_nriqa = nriqa_loss_from_score(nriqa_metric, score)
+
+                        loss = args.latent_opt_lambda_lr * loss_lr + args.latent_opt_lambda_nriqa * loss_nriqa
+                        loss.backward()
+                        opt_z.step()
+
+                    with torch.no_grad():
+                        if args.exact_constant_memory_doodl:
+                            z0_latent = vosr_model.denoise_from_zT_edict(
+                                model=model,
+                                lq=lq_latent,
+                                zT_pair=zT_pair,
+                                venc_fea=z_fea,
+                                n_steps=args.infer_steps,
+                                p=args.edict_mix_p,
+                                use_reversible_step=True,
+                            )
+                        elif args.constant_memory_doodl:
+                            z0_latent = vosr_model.denoise_from_zT_edict_chunked(
+                                model=model,
+                                lq=lq_latent,
+                                zT_pair=zT_pair,
+                                venc_fea=z_fea,
+                                n_steps=args.infer_steps,
+                                p=args.edict_mix_p,
+                                use_reversible_step=args.use_reversible_step,
+                                chunk_size=args.recompute_chunk_size,
+                                stop_grad_between_chunks=False,
+                            )
+                        else:
+                            z0_latent = vosr_model.denoise_from_zT_edict(
+                                model=model,
+                                lq=lq_latent,
+                                zT_pair=zT_pair,
+                                venc_fea=z_fea,
+                                n_steps=args.infer_steps,
+                                p=args.edict_mix_p,
+                                use_reversible_step=args.use_reversible_step,
+                            )
+                        sr_tensor = _decode_latent(vae, z0_latent, args, latents_mean, latents_std, light_decoder)
 
             sr_img = transforms.ToPILImage()(sr_tensor[0].cpu() * 0.5 + 0.5)
             if args.align_method == 'adain':
