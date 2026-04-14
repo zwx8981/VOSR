@@ -8,6 +8,7 @@ diffusers==0.35.0
 einops==0.8.0
 fairscale==0.4.13
 loguru==0.7.3
+memcnn==1.5.2
 numpy==1.26.4
 opencv-python-headless==4.10.0.84
 pillow==12.1.1

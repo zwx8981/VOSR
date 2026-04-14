@@ -129,13 +129,53 @@ def preprocess_raw_image(x, args):
     return x
 
 
+def _resolve_dinov2_repo_path(repo_or_dir):
+    """Resolve a local DINOv2 repo path that contains hubconf.py."""
+    p = os.path.abspath(os.path.expanduser(repo_or_dir))
+    candidates = [
+        p,
+        os.path.join(p, "hub", "facebookresearch_dinov2_main"),
+        os.path.join(p, "facebookresearch_dinov2_main"),
+        os.path.join(p, "dinov2"),
+    ]
+    for c in candidates:
+        if os.path.isfile(os.path.join(c, "hubconf.py")):
+            return c
+    raise FileNotFoundError(
+        "Could not find hubconf.py for DINOv2 local loading. "
+        f"Provided --dinov2_repo: {repo_or_dir}. "
+        "Expected one of these to contain hubconf.py: "
+        + ", ".join(candidates)
+    )
+
+
 def load_dinov2(args, device):
     if args.enc_type == 'dinov2b':
-        encoder = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitb14')
+        model_name = 'dinov2_vitb14'
     elif args.enc_type == 'dinov2l':
-        encoder = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14')
+        model_name = 'dinov2_vitl14'
     elif args.enc_type == 'dinov2g':
-        encoder = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitg14')
+        model_name = 'dinov2_vitg14'
+    else:
+        raise ValueError(f"Unsupported enc_type: {args.enc_type}")
+
+    repo_or_dir = getattr(args, 'dinov2_repo', '')
+    repo_or_dir = repo_or_dir.strip() if isinstance(repo_or_dir, str) else ''
+
+    try:
+        if repo_or_dir:
+            local_repo = _resolve_dinov2_repo_path(repo_or_dir)
+            print(f"Loading DINOv2 from local repo: {local_repo} ({model_name})")
+            encoder = torch.hub.load(local_repo, model_name, source='local')
+        else:
+            encoder = torch.hub.load('facebookresearch/dinov2', model_name)
+    except Exception as e:
+        hint = (
+            "Failed to load DINOv2 via torch.hub. "
+            "If your environment has no internet access, clone "
+            "facebookresearch/dinov2 locally and pass --dinov2_repo /path/to/dinov2."
+        )
+        raise RuntimeError(f"{hint}\nOriginal error: {e}") from e
     del encoder.head
     encoder.head = torch.nn.Identity()
 
@@ -345,6 +385,20 @@ def main():
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--force_rerun', action='store_true')
     parser.add_argument('--config', type=str, default='')
+    parser.add_argument('--dinov2_repo', type=str, default='',
+                        help='Local path to facebookresearch/dinov2 repo. If set, load via torch.hub(source=\"local\") without network.')
+    parser.add_argument('--mode', type=str, choices=['vosr', 'doodl'], default='vosr',
+                        help='Inference mode: original VOSR path or experimental DOODL-style path.')
+    parser.add_argument('--latent_opt_steps', type=int, default=0,
+                        help='Number of latent optimization steps (reserved for doodl mode).')
+    parser.add_argument('--latent_opt_lr', type=float, default=1e-2,
+                        help='Latent optimization learning rate (reserved for doodl mode).')
+    parser.add_argument('--edict_mix_p', type=float, default=0.93,
+                        help='EDICT mixing coefficient p (reserved for doodl mode).')
+    parser.add_argument('--use_memcnn', action='store_true',
+                        help='Enable memcnn reversible wrapper for EDICT mixing modules.')
+    parser.add_argument('--memcnn_keep_input', action='store_true',
+                        help='Keep input tensors in memcnn wrapper for debugging/tracing.')
 
     temp_args, _ = parser.parse_known_args()
     args = load_config_with_cli(temp_args.checkpoint, parser)
@@ -357,6 +411,11 @@ def main():
     if not image_paths:
         print("No LQ images found. Exit.")
         return
+    if args.mode == 'doodl':
+        raise NotImplementedError(
+            "mode=doodl switch is now available, but the DOODL-FM inference path is not fully wired yet. "
+            "Please use --mode vosr for current stable inference."
+        )
 
     run_stem = f'{args.ae_type}_steps{args.infer_steps}_seed{seed}_{args.distill_type}'
     out_dir = f'{args.output_dir}/{run_stem}'
@@ -464,6 +523,8 @@ def main():
         t_start=args.t_start,
         t_end=args.t_end,
         args=args,
+        use_memcnn=args.use_memcnn,
+        memcnn_keep_input=args.memcnn_keep_input,
     )
 
     sample_fn = vosr_model.sample_onestep
